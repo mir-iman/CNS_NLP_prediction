@@ -1,7 +1,8 @@
 from torchmetrics.functional import accuracy, precision, recall, auroc, f1, specificity
 from torchmetrics import ConfusionMatrix
 import torch
-
+#update - include pandas
+import pandas as pd
 
 def calculate_metrics(pred_labels, target_labels, loss=torch.tensor([0])):
     """
@@ -16,7 +17,10 @@ def calculate_metrics(pred_labels, target_labels, loss=torch.tensor([0])):
     """
 
     # Make a confusion matrix to calculate ppv/npv from
-    confmat = ConfusionMatrix(num_classes=2)
+    #update 
+    #confmat = ConfusionMatrix(num_classes=2)
+
+    confmat = ConfusionMatrix(task="binary")
 
     # Some inputs will be GPU tensors, while others are numpy arrays on CPU
     try:
@@ -47,16 +51,31 @@ def calculate_metrics(pred_labels, target_labels, loss=torch.tensor([0])):
 
     # Calculate and make a dict with all the metrics
     epoch_metrics = {'acc': accuracy(pred_labels, target_labels).item(),
-                     'bal_acc': accuracy(pred_labels, target_labels,
-                                         average='macro',
-                                         num_classes=2,
-                                         multiclass=True).item(),
-                     'auc': auroc(pred_labels, target_labels,
-                                  pos_label=1).item(),
+                     
+                    #update to new torchmetrics api 
+                    #'bal_acc': accuracy(pred_labels, target_labels,
+                    #                    average='macro',
+                    #                    num_classes=2,
+                    #                   multiclass=True).item(),
+                    #'auc': auroc(pred_labels, target_labels,
+                    #             pos_label=1).item(),
+
+                    'bal_acc': accuracy(
+                        pred_labels,
+                        target_labels,
+                        task="multiclass",
+                        average='macro',
+                        num_classes=2 ).item(),
+                     'auc': auroc(pred_labels, target_labels, task="binary").item(),
+
                      'prec': precision(pred_labels, target_labels).item(),
                      'rec': recall(pred_labels, target_labels).item(),
                      'spec': specificity(pred_labels, target_labels).item(),
-                     'f1': f1(pred_labels, target_labels).item(),
+                     
+                     #update to new torchmetrics api 
+                     #'f1': f1(pred_labels, target_labels).item(),
+                     'f1': f1_score(pred_labels, target_labels, task="binary").item(),
+
                      'loss': loss,
                      'ppv': ppv,
                      'npv': npv,
@@ -76,7 +95,9 @@ def add_epoch_perf(target_labels, pred_labels, loss, history):
     """
     to_append = calculate_metrics(pred_labels, target_labels, loss)
 
-    history = history.append(to_append, ignore_index=True)
+    #update to concat 
+    #history = history.append(to_append, ignore_index=True)
+    history = pd.concat([history, pd.DataFrame([to_append])], ignore_index=True)
     history.index.name = "epoch"  # only actually needs to be done once, but will just call again
 
     return history
