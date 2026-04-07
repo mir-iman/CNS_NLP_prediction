@@ -1,7 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchtext
+
+#update package 
+#import torchtext
+
+from torchtext.vocab import GloVe
 
 """
 From the Kim CNN model.py from the Hedwig repository
@@ -27,12 +31,17 @@ class CNN(nn.Module):
             rand_embed_init = torch.Tensor(config.vocab_size, config.words_dim).uniform_(-0.25, 0.25)
             self.embed = nn.Embedding.from_pretrained(rand_embed_init, freeze=False)
         elif config.mode == 'static':
-            glove = torchtext.vocab.GloVe(
-                dim=self.D)  # name="6B", max_vectors=10000 TODO: Options for different vectors
+            #update 
+            #glove = torchtext.vocab.GloVe(
+             #   dim=self.D)  # name="6B", max_vectors=10000 TODO: Options for different vectors
+            glove = GloVe(dim=words_dim)
             self.embed = nn.Embedding.from_pretrained(glove.vectors, freeze=True)
         elif config.mode == 'non-static':
-            glove = torchtext.vocab.GloVe(
-                dim=self.D)  # name="6B", max_vectors=10000 TODO: Options for different vectors
+            #update 
+            #glove = torchtext.vocab.GloVe(
+            #    dim=self.D)  # name="6B", max_vectors=10000 TODO: Options for different vectors
+            glove = GloVe(dim=words_dim)
+            
             self.embed = nn.Embedding.from_pretrained(glove.vectors, freeze=False)
         else:
             print("Unsupported Mode")
