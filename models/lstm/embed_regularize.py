@@ -36,7 +36,10 @@ import torch
 
 def embedded_dropout(embed, words, dropout=0.1, scale=None):
   if dropout:
-    mask = embed.weight.data.new().resize_((embed.weight.size(0), 1)).bernoulli_(1 - dropout).expand_as(embed.weight) / (1 - dropout)
+    #update- .data outdated 
+    #mask = embed.weight.data.new().resize_((embed.weight.size(0), 1)).bernoulli_(1 - dropout).expand_as(embed.weight) / (1 - dropout)
+    
+    mask = embed.weight.new_empty((embed.weight.size(0), 1)).bernoulli_(1 - dropout).expand_as(embed.weight) / (1 - dropout)
     masked_embed_weight = mask * embed.weight
   else:
     masked_embed_weight = embed.weight

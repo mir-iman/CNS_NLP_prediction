@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
-import torchtext
+
+#update for never version
+#import torchtext
+from torchtext.vocab import GloVe
+
 # import torch.nn.functional as F
 from models.lstm.embed_regularize import embedded_dropout
 from models.lstm.weight_drop import WeightDrop
@@ -26,12 +30,21 @@ class LSTM(nn.Module):
             rand_embed_init = torch.Tensor(config.vocab_size, config.words_dim).uniform_(-0.25, 0.25)
             self.embed = nn.Embedding.from_pretrained(rand_embed_init, freeze=False)
         elif self.mode == 'static':
-            glove = torchtext.vocab.GloVe(
-                dim=self.D)  # name="6B", max_vectors=10000 TODO: Options for different vectors
+            #update 
+            #glove = torchtext.vocab.GloVe(
+             #   dim=self.D)  # name="6B", max_vectors=10000 TODO: Options for different vectors
+            glove = GloVe(
+                dim=self.D
+
             self.embed = nn.Embedding.from_pretrained(glove.vectors, freeze=True)
         elif self.mode == 'non-static':
-            glove = torchtext.vocab.GloVe(
-                dim=self.D)  # name="6B", max_vectors=10000 TODO: Options for different vectors
+            #update 
+            #glove = torchtext.vocab.GloVe(
+            #    dim=self.D)  # name="6B", max_vectors=10000 TODO: Options for different vectors
+            
+             glove = GloVe(
+                dim=self.D) 
+            
             self.embed = nn.Embedding.from_pretrained(glove.vectors, freeze=False)
         else:
             print("Unsupported Mode")
