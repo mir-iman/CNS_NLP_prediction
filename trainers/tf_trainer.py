@@ -3,8 +3,13 @@
 # Instead just use Pytorch Lightning
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.utilities import rank_zero_only
-from pytorch_lightning.loggers import LightningLoggerBase
-from pytorch_lightning.loggers.base import rank_zero_experiment
+
+#update 
+#from pytorch_lightning.loggers import LightningLoggerBase
+#from pytorch_lightning.loggers.base import rank_zero_experiment
+from pytorch_lightning.loggers.logger import Logger
+from pytorch_lightning.loggers.logger import rank_zero_experiment
+
 import time
 import pandas as pd
 import pytorch_lightning as pl
@@ -20,11 +25,20 @@ class TransformerTrainer(pl.Trainer):
                                             verbose=False,
                                             mode="max")
 
-        super().__init__(max_epochs=config.epochs,
-                         gpus=1,
-                         callbacks=[early_stop_callback, checkpoint_callback],
-                         progress_bar_refresh_rate=30,
-                         logger=logger)
+        #update 
+        #super().__init__(max_epochs=config.epochs,
+        #                 gpus=1,
+        #                 callbacks=[early_stop_callback, checkpoint_callback],
+        #               progress_bar_refresh_rate=30,
+        #            logger=logger)
+        super().__init__(
+            max_epochs=config.epochs,
+            accelerator="gpu",
+            devices=1,
+            callbacks=[early_stop_callback, checkpoint_callback],
+            enable_progress_bar=True,
+            logger=logger
+        )
 
         self.start = time.time()  # Don't want to mess with inherited fit so just grab start time here
 
@@ -90,7 +104,10 @@ class MyLogger(LightningLoggerBase):
         if 'dev_perf' in metrics:
             dev_perf = metrics["dev_perf"]
             dev_perf["epoch"] = metrics["epoch"]
-            self.dev_history = self.dev_history.append(dev_perf, ignore_index=True)
+            
+            #update to concat 
+            #self.dev_history = self.dev_history.append(dev_perf, ignore_index=True)
+            self.dev_history = pd.concat([self.dev_history, pd.DataFrame([dev_perf])], ignore_index=True)
             self.dev_history.index.name = "epoch"
 
         elif 'train_perf' in metrics:
@@ -99,13 +116,22 @@ class MyLogger(LightningLoggerBase):
         elif 'train_perf_epoch' in metrics:
             train_perf = metrics["train_perf_epoch"]
             train_perf["epoch"] = metrics["epoch"]
-            self.train_history = self.train_history.append(train_perf, ignore_index=True)
+
+            #update to concat 
+            #self.train_history = self.train_history.append(train_perf, ignore_index=True)
+            self.train_history = pd.concat([self.train_history, pd.DataFrame([train_perf])],ignore_index=True
+            )
             self.train_history.index.name = "epoch"
 
         elif 'test_perf' in metrics:
             test_perf = metrics["test_perf"]
             test_perf["epoch"] = metrics["epoch"]
-            self.test_history = self.test_history.append(test_perf, ignore_index=True)
+
+            #update to concat 
+            #self.test_history = self.test_history.append(test_perf, ignore_index=True)
+            self.test_history = pd.concat([self.test_history, pd.DataFrame([test_perf])],ignore_index=True
+            )
+
             self.test_history.index.name = "epoch"
         else:
             raise ValueError(f"Unexpected metrics, here they are: {metrics}")
