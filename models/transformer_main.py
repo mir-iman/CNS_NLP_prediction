@@ -22,12 +22,19 @@ def transformer_main(model_name, model_class, model_dataset, args):
     start_time = datetime.datetime.now().strftime("%Y%m%d-%H%M")
 
     # Set Device
-    if args.cuda:
+    # if args.cuda:
+    #     args.device = torch.device('cuda:0')
+    #     print("Using a CUDA GPU, woot!")
+    # else:
+    #     args.device = 'cpu'
+    #     print("Using a CPU, sad!")
+
+    if args.cuda and torch.cuda.is_available():
         args.device = torch.device('cuda:0')
         print("Using a CUDA GPU, woot!")
     else:
-        args.device = 'cpu'
-        print("Using a CPU, sad!")
+        args.device = torch.device('cpu')
+        print("Using a CPU")
 
     config = deepcopy(args)
     config.run_name = model_name + "_" + start_time
@@ -48,6 +55,7 @@ def transformer_main(model_name, model_class, model_dataset, args):
         loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(pos_weight))
     elif config.imbalance_fix == 'none':
         loss_fn = nn.BCEWithLogitsLoss()
+        dataset = model_dataset(config)
     elif config.imbalance_fix == 'undersampling':
         loss_fn = nn.BCEWithLogitsLoss()
         dataset = model_dataset(config, undersample=True)

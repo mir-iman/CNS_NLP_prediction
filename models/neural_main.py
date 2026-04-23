@@ -32,12 +32,20 @@ def neural_main(model_name, model_class, model_trainer, args):
         os.environ['CUDA_LAUNCH_BLOCKING'] = "0"
 
     # Set device being used to train and evaluate the model
-    if args.cuda:
+    # if args.cuda:
+    #     args.device = torch.device('cuda:0')
+    #     print("Using a CUDA GPU, woot!")
+    # else:
+    #     args.device = 'cpu'
+    #     print("Using a CPU, sad!")
+
+    #update
+    if args.cuda and torch.cuda.is_available():
         args.device = torch.device('cuda:0')
         print("Using a CUDA GPU, woot!")
     else:
-        args.device = 'cpu'
-        print("Using a CPU, sad!")
+        args.device = torch.device('cpu')
+        print("Using a CPU")
 
     # Loss and optimizer
     if args.imbalance_fix == 'loss_weight':

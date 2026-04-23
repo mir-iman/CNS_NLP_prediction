@@ -3,16 +3,15 @@
 # Instead just use Pytorch Lightning
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.utilities import rank_zero_only
-
-#update 
 #from pytorch_lightning.loggers import LightningLoggerBase
 #from pytorch_lightning.loggers.base import rank_zero_experiment
 from pytorch_lightning.loggers.logger import Logger
 from pytorch_lightning.loggers.logger import rank_zero_experiment
-
 import time
 import pandas as pd
 import pytorch_lightning as pl
+#new
+import torch  
 
 
 class TransformerTrainer(pl.Trainer):
@@ -25,19 +24,26 @@ class TransformerTrainer(pl.Trainer):
                                             verbose=False,
                                             mode="max")
 
+        # super().__init__(max_epochs=config.epochs,
+        #                  gpus=1,
+        #                  callbacks=[early_stop_callback, checkpoint_callback],
+        #                  progress_bar_refresh_rate=30,
+        #                  logger=logger)
+
         #update 
-        #super().__init__(max_epochs=config.epochs,
-        #                 gpus=1,
-        #                 callbacks=[early_stop_callback, checkpoint_callback],
-        #               progress_bar_refresh_rate=30,
-        #            logger=logger)
-        super().__init__(
-            max_epochs=config.epochs,
-            accelerator="gpu",
-            devices=1,
-            callbacks=[early_stop_callback, checkpoint_callback],
-            enable_progress_bar=True,
-            logger=logger
+        if torch.cuda.is_available() and getattr(config, "cuda", False):
+            accelerator = "gpu"
+            devices = 1
+        else:
+            accelerator = "cpu"
+            devices = 1
+
+        super().__init__(max_epochs=config.epochs,
+                         accelerator=accelerator,
+                         devices=devices,
+                         callbacks=[early_stop_callback, checkpoint_callback],
+                         logger=logger,
+                         enable_progress_bar=True,
         )
 
         self.start = time.time()  # Don't want to mess with inherited fit so just grab start time here
@@ -49,94 +55,84 @@ class TransformerTrainer(pl.Trainer):
         :return:
         """
 
-        train_history, dev_history, test_history = self.logger[1].get_history()
+        #train_history, dev_history, test_history = self.logger[1].get_history()
+        train_history, dev_history, test_history = self.logger.get_history()
+
         start = self.start
 
         return train_history, dev_history, test_history, start
 
 
-class MyLogger(LightningLoggerBase):
+# class MyLogger(LightningLoggerBase):
 
-    def __init__(
-        self,
-        save_dir: str,
-        # name: Optional[str] = "default",
-        # version: Optional[Union[int, str]] = None,
-        # prefix: str = "",
-    ):
-        super().__init__()
-        self._save_dir = save_dir
-        # self._name = name or ""
-        # self._version = version
-        # self._prefix = prefix
-        # self._experiment = None
+#     def __init__(
+#         self,
+#         save_dir: str,
+#         # name: Optional[str] = "default",
+#         # version: Optional[Union[int, str]] = None,
+#         # prefix: str = "",
+#     ):
+#         super().__init__()
+#         self._save_dir = save_dir
+#         # self._name = name or ""
+#         # self._version = version
+#         # self._prefix = prefix
+#         # self._experiment = None
 
-        self.train_history = pd.DataFrame()
-        self.dev_history = pd.DataFrame()
-        self.test_history = pd.DataFrame()
+#         self.train_history = pd.DataFrame()
+#         self.dev_history = pd.DataFrame()
+#         self.test_history = pd.DataFrame()
 
-    @property
-    def name(self):
-        return "MyLogger"
+#     @property
+#     def name(self):
+#         return "MyLogger"
 
-    @property
-    @rank_zero_experiment
-    def experiment(self):
-        # Return the experiment object associated with this logger.
-        pass
+#     @property
+#     @rank_zero_experiment
+#     def experiment(self):
+#         # Return the experiment object associated with this logger.
+#         pass
 
-    @property
-    def version(self):
-        # Return the experiment version, int or str.
-        return "0.1"
+#     @property
+#     def version(self):
+#         # Return the experiment version, int or str.
+#         return "0.1"
 
-    @rank_zero_only
-    def log_hyperparams(self, params):
-        # params is an argparse.Namespace
-        # your code to record hyperparameters goes here
-        pass
+#     @rank_zero_only
+#     def log_hyperparams(self, params):
+#         # params is an argparse.Namespace
+#         # your code to record hyperparameters goes here
+#         pass
 
-    @rank_zero_only
-    def log_metrics(self, metrics, step):
-        # metrics is a dictionary of metric names and values
-        # your code to record metrics goes here
+#     @rank_zero_only
+#     def log_metrics(self, metrics, step):
+#         # metrics is a dictionary of metric names and values
+#         # your code to record metrics goes here
 
-        if 'dev_perf' in metrics:
-            dev_perf = metrics["dev_perf"]
-            dev_perf["epoch"] = metrics["epoch"]
-            
-            #update to concat 
-            #self.dev_history = self.dev_history.append(dev_perf, ignore_index=True)
-            self.dev_history = pd.concat([self.dev_history, pd.DataFrame([dev_perf])], ignore_index=True)
-            self.dev_history.index.name = "epoch"
+#         if 'dev_perf' in metrics:
+#             dev_perf = metrics["dev_perf"]
+#             dev_perf["epoch"] = metrics["epoch"]
+#             self.dev_history = self.dev_history.append(dev_perf, ignore_index=True)
+#             self.dev_history.index.name = "epoch"
 
-        elif 'train_perf' in metrics:
-            pass
+#         elif 'train_perf' in metrics:
+#             pass
 
-        elif 'train_perf_epoch' in metrics:
-            train_perf = metrics["train_perf_epoch"]
-            train_perf["epoch"] = metrics["epoch"]
+#         elif 'train_perf_epoch' in metrics:
+#             train_perf = metrics["train_perf_epoch"]
+#             train_perf["epoch"] = metrics["epoch"]
+#             self.train_history = self.train_history.append(train_perf, ignore_index=True)
+#             self.train_history.index.name = "epoch"
 
-            #update to concat 
-            #self.train_history = self.train_history.append(train_perf, ignore_index=True)
-            self.train_history = pd.concat([self.train_history, pd.DataFrame([train_perf])],ignore_index=True
-            )
-            self.train_history.index.name = "epoch"
+#         elif 'test_perf' in metrics:
+#             test_perf = metrics["test_perf"]
+#             test_perf["epoch"] = metrics["epoch"]
+#             self.test_history = self.test_history.append(test_perf, ignore_index=True)
+#             self.test_history.index.name = "epoch"
+#         else:
+#             raise ValueError(f"Unexpected metrics, here they are: {metrics}")
 
-        elif 'test_perf' in metrics:
-            test_perf = metrics["test_perf"]
-            test_perf["epoch"] = metrics["epoch"]
-
-            #update to concat 
-            #self.test_history = self.test_history.append(test_perf, ignore_index=True)
-            self.test_history = pd.concat([self.test_history, pd.DataFrame([test_perf])],ignore_index=True
-            )
-
-            self.test_history.index.name = "epoch"
-        else:
-            raise ValueError(f"Unexpected metrics, here they are: {metrics}")
-
-        pass
+#         pass
 
     # @rank_zero_only
     # def save(self):
@@ -152,6 +148,74 @@ class MyLogger(LightningLoggerBase):
     #    # finishes goes here
     #    print('Finalizing!')
     #    pass
+
+class MyLogger(Logger):
+
+    def __init__(self, save_dir: str):
+        super().__init__()
+        self._save_dir = save_dir
+
+        self.train_history = pd.DataFrame()
+        self.dev_history = pd.DataFrame()
+        self.test_history = pd.DataFrame()
+
+    @property
+    def name(self):
+        return "MyLogger"
+
+    @property
+    @rank_zero_experiment
+    def experiment(self):
+        return None
+
+    @property
+    def version(self):
+        return "0.1"
+
+    @property
+    def save_dir(self):
+        return self._save_dir
+
+    @rank_zero_only
+    def log_hyperparams(self, params):
+        pass
+
+    @rank_zero_only
+    def log_metrics(self, metrics, step):
+        if 'dev_perf' in metrics:
+            dev_perf = dict(metrics["dev_perf"])
+            dev_perf["epoch"] = metrics.get("epoch", step)
+            self.dev_history = pd.concat(
+                [self.dev_history, pd.DataFrame([dev_perf])],
+                ignore_index=True
+            )
+            self.dev_history.index.name = "epoch"
+
+        elif 'train_perf' in metrics:
+            pass
+
+        elif 'train_perf_epoch' in metrics:
+            train_perf = dict(metrics["train_perf_epoch"])
+            train_perf["epoch"] = metrics.get("epoch", step)
+            self.train_history = pd.concat(
+                [self.train_history, pd.DataFrame([train_perf])],
+                ignore_index=True
+            )
+            self.train_history.index.name = "epoch"
+
+        elif 'test_perf' in metrics:
+            test_perf = dict(metrics["test_perf"])
+            test_perf["epoch"] = metrics.get("epoch", step)
+            self.test_history = pd.concat(
+                [self.test_history, pd.DataFrame([test_perf])],
+                ignore_index=True
+            )
+            self.test_history.index.name = "epoch"
+        else:
+            raise ValueError(f"Unexpected metrics, here they are: {metrics}")
+
+
+
 
     def get_history(self):
         return self.train_history, self.dev_history, self.test_history

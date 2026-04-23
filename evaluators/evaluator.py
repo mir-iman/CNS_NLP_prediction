@@ -160,17 +160,19 @@ class Evaluator(object):
                 to_append[col_header] = ''
 
         # Read in the prior results df, and append this result via the dict
+        # df = pd.read_csv(self.results_for_target)
+        # df = df.append(to_append, ignore_index=True)
+        # # Set index, and reorder the columns
+        # df = df.set_index("Datetime")
+        # df = df[COLS_IN_ORDER]
+
+        # df.to_csv(self.results_for_target)
+        #update
         df = pd.read_csv(self.results_for_target)
-
-        #update to concat 
-        #df = df.append(to_append, ignore_index=True)
-
         df = pd.concat([df, pd.DataFrame([to_append])], ignore_index=True)
-
         # Set index, and reorder the columns
         df = df.set_index("Datetime")
         df = df[COLS_IN_ORDER]
-
         df.to_csv(self.results_for_target)
 
     def write_result_history(self):

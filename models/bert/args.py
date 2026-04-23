@@ -12,7 +12,7 @@ def get_args():
 
     # Directory to import in pretrained BERT model
     parser.add_argument('--pretrained_dir',
-                        default=os.path.join(r"C:\Users\jjnunez\PycharmProjects", 'shared_data', 'models'))
+                        default=None)
     parser.add_argument('--pretrained_file', default='bert-base-uncased',
                         choices=['bert-base-uncased',
                                  'bert-large-uncased',

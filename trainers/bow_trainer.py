@@ -71,8 +71,7 @@ class BoWTrainer(object):
                                              n_jobs=-1,
                                              class_weight=self.class_weight)
             elif self.classifier == "elnet":
-                #update newer scikit-lean uses log_loss instead of loss
-                clf = SGDClassifier(loss='log_loss', penalty='elasticnet',
+                clf = SGDClassifier(loss='log', penalty='elasticnet',
                                     l1_ratio=self.elnet_l1_ratio,
                                     alpha=self.elnet_alpha,
                                     max_iter=1000,

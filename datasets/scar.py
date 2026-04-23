@@ -1,6 +1,8 @@
-from torchtext.data.datasets_utils import _wrap_split_argument
-from torchtext.data.datasets_utils import _RawTextIterableDataset
-from torchtext.vocab import build_vocab_from_iterator
+#from torchtext.data.datasets_utils import _wrap_split_argument
+#from torchtext.data.datasets_utils import _RawTextIterableDataset
+#from torchtext.vocab import build_vocab_from_iterator
+
+from collections import Counter
 import io
 import os.path
 from torchtext.data.utils import get_tokenizer
@@ -9,13 +11,14 @@ from torch.nn.utils.rnn import pad_sequence
 import torch
 import random
 
+
 class SCAR:
     DATASET_NAME = "SCAR"
     NUM_CLASSES = 1
-
-    def __init__(self, batch_size, data_root, target, undersample=False, device=torch.device('cuda:0'), min_freq=10):
+    #update 
+    def __init__(self, batch_size, data_root, target, undersample=False, device=None, min_freq=10):
         self.batch_size = batch_size
-        self.device = device
+        self.device = device if device is not None else torch.device('cpu')
 
         if undersample:
             self.data_dir = os.path.join(data_root, target + "_undersampled")
@@ -27,25 +30,26 @@ class SCAR:
         self.f_train = os.path.join(self.data_dir, 'train.tsv')
         self.f_dev = os.path.join(self.data_dir, 'dev.tsv')
         self.f_test = os.path.join(self.data_dir, 'test.tsv')
-        self.f_dict = {'train': self.f_train,
-                       'dev': self.f_dev,
-                       'test': self.f_test}
+        self.f_dict = {
+            'train': self.f_train,
+            'dev': self.f_dev,
+            'test': self.f_test
+        }
 
         # Count number of lines in all of the data splits
-        with open(self.f_train) as f:
+        with open(self.f_train, encoding="utf-8") as f:
             self.n_train = len(f.readlines())
-        f.close()
-        with open(self.f_dev) as f:
+        with open(self.f_dev, encoding="utf-8") as f:
             self.n_dev = len(f.readlines())
-        f.close()
-        with open(self.f_test) as f:
+        with open(self.f_test, encoding="utf-8") as f:
             self.n_test = len(f.readlines())
-        f.close()
 
         # Create a dict with the lengths
-        self.n_lines = {'train': self.n_train,
-                        'dev': self.n_dev,
-                        'test': self.n_test}
+        self.n_lines = {
+            'train': self.n_train,
+            'dev': self.n_dev,
+            'test': self.n_test
+        }
 
         if undersample:
             self.n_lines['train'] = 1815
@@ -62,16 +66,42 @@ class SCAR:
     def get_vocab_size(self):
         return len(self.vocab)
 
+    #update
     def build_scar_vocab(self, min_freq=10):
-        vocab = build_vocab_from_iterator(self.train_token_iter, min_freq=min_freq,
-                                          specials=('<BOS>', '<EOS>', '<PAD>'))
+        counter = Counter()
+
+        for tokens in self.train_token_iter:
+            counter.update(tokens)
+
+        stoi = {
+            '<unk>': 0,
+            '<BOS>': 1,
+            '<EOS>': 2,
+            '<PAD>': 3
+        }
+
+        for token, freq in counter.items():
+            if freq >= min_freq and token not in stoi:
+                stoi[token] = len(stoi)
+
+        class SimpleVocab:
+            def __init__(self, stoi):
+                self.stoi = stoi
+
+            def __getitem__(self, token):
+                return self.stoi.get(token, self.stoi['<unk>'])
+
+            def __len__(self):
+                return len(self.stoi)
+
+        return SimpleVocab(stoi)
 
         # Add unknown token at default index position
-        unknown_token = '<unk>'
-        vocab.insert_token(unknown_token, 0)
-        vocab.set_default_index(vocab[unknown_token])
+        # unknown_token = '<unk>'
+        # vocab.insert_token(unknown_token, 0)
+        # vocab.set_default_index(vocab[unknown_token])
 
-        return vocab
+        # return vocab
 
     @staticmethod
     def tokenizer(t):
@@ -100,21 +130,38 @@ class SCAR:
             print("Target is already only one digit!")
             return int(target_text)
 
-    @_wrap_split_argument(('train', 'dev', 'test'))
-    def create_iter(root, split):
-        def generate_scar_data(key, files):
-            f_name = files[key]
-            f = io.open(f_name, "r")
+    #  @_wrap_split_argument(('train', 'dev', 'test'))
+    # def create_iter(root, split):
+    #     def generate_scar_data(key, files):
+    #         f_name = files[key]
+    #         f = io.open(f_name, "r")
+    #         for line in f:
+    #             values = line.split("\t")
+    #             assert len(values) == 2, \
+    #                 'Error: excepted SCAR datafile to be tsv format, but splitting by tab did not yield 2 parts'
+    #             label = values[0]  # root.target_parse(values[0])
+    #             text = values[1]
+    #             yield label, text
+
+    #     iterator = generate_scar_data(split, root.f_dict)
+    #     #return _RawTextIterableDataset(root.DATASET_NAME, root.n_lines[split], iterator)
+
+    # update
+    def _generate_scar_data(self, split):
+        f_name = self.f_dict[split]
+        with io.open(f_name, "r", encoding="utf-8") as f:
             for line in f:
-                values = line.split("\t")
+                values = line.rstrip("\n").split("\t", maxsplit=1)
                 assert len(values) == 2, \
-                    'Error: excepted SCAR datafile to be tsv format, but splitting by tab did not yield 2 parts'
+                    'Error: expected SCAR datafile to be tsv format, but splitting by tab did not yield 2 parts'
                 label = values[0]  # root.target_parse(values[0])
                 text = values[1]
                 yield label, text
 
-        iterator = generate_scar_data(split, root.f_dict)
-        return _RawTextIterableDataset(root.DATASET_NAME, root.n_lines[split], iterator)
+    def create_iter(self, split):
+        if isinstance(split, (tuple, list)):
+            return tuple(self._generate_scar_data(s) for s in split)
+        return self._generate_scar_data(split)
 
     def collate_batch(self, batch):
         label_list, text_list = [], []
@@ -129,6 +176,7 @@ class SCAR:
         indices = [(i, len(self.tokenizer(s[1]))) for i, s in enumerate(split_list)]
         random.shuffle(indices)
         pooled_indices = []
+
         # create pool of indices with similar lengths
         for i in range(0, len(indices), self.batch_size * 100):
             pooled_indices.extend(sorted(indices[i:i + self.batch_size * 100], key=lambda x: x[1]))
@@ -141,8 +189,11 @@ class SCAR:
 
     def get_bucket_dataloader(self, split):
         split_list = list(self.create_iter(split=split))
-        return DataLoader(split_list, batch_sampler=self.batch_sampler(split=split),
-                          collate_fn=self.collate_batch)
+        return DataLoader(
+            split_list,
+            batch_sampler=self.batch_sampler(split=split),
+            collate_fn=self.collate_batch
+        )
 
     def train_dataloader(self):
         return self.get_bucket_dataloader('train')
@@ -172,6 +223,8 @@ class SCAR:
         :param label: the string representation of the label, maybe '0'/'1' or '10'/'01'
         :return: float representation, 0 or 1. If need multi-label, will need to change to return a list etc.
         """
+
+        label = label.strip()
 
         if len(label) == 1:
             return float(label)

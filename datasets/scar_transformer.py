@@ -76,7 +76,11 @@ class SCARTransformer(pl.LightningDataModule):
 
         self.debug = config.debug
 
-        pretrained_model_path = os.path.join(config.pretrained_dir, config.pretrained_file)
+       # pretrained_model_path = os.path.join(config.pretrained_dir, config.pretrained_file)
+        if config.pretrained_dir is None:
+            pretrained_model_path = config.pretrained_file
+        else:
+            pretrained_model_path = os.path.join(config.pretrained_dir, config.pretrained_file)
         self.tokenizer = tokenizer.from_pretrained(pretrained_model_path)
 
         # Clean and prepare the raw data

@@ -7,7 +7,6 @@ from datasets.scar_bow import SCARBoW
 import warnings
 import datetime
 
-#found error when imabalnce_fix =="none" class_weight = None but scar_bow not created
 if __name__ == '__main__':
 
     args = get_args()
@@ -23,10 +22,6 @@ if __name__ == '__main__':
         print(f"Loading and evaluating a {model_name} model")
     else:
         print(f"Training and evaluating a {model_name} model")
-
-    #update - initialize 
-    class_weight = None
-    scar_bow = None
 
     # Loss
     if config.imbalance_fix == 'loss_weight':
@@ -46,8 +41,7 @@ if __name__ == '__main__':
         scar_bow = SCARBoW(args, undersample=True)
     elif config.imbalance_fix == 'none':
         class_weight = None
-        #update to include scar_bow
-        scar_bow = SCARBoW(args)
+        scar_bow = SCARBoW(args) #added this in 
     else:
         raise Exception("Invalid method to fix the class imbalance provided, or not yet implemented")
 
@@ -60,14 +54,10 @@ if __name__ == '__main__':
     config.results_dir_target = os.path.join(config.results_dir, config.target)  # dir for a targets results
     config.results_dir_model = os.path.join(config.results_dir_target, model_name)  # subdir for each model
 
-    #update to use os.makedirs 
-    #if not os.path.exists(config.results_dir_target):
-    #    os.mkdir(config.results_dir_target)
-    #if not os.path.exists(config.results_dir_model):
-    #    os.mkdir(config.results_dir_model)
-    
-    os.makedirs(config.results_dir_target, exist_ok=True)
-    os.makedirs(config.results_dir_model, exist_ok=True)
+    if not os.path.exists(config.results_dir_target):
+        os.mkdir(config.results_dir_target)
+    if not os.path.exists(config.results_dir_model):
+        os.mkdir(config.results_dir_model)
 
     # Train and Evaluate Model
     trainer = BoWTrainer(config=config, class_weight=class_weight)

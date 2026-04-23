@@ -1,7 +1,5 @@
 import os
 import pandas as pd
-import numpy as np
-from datasets.scar import SCAR
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
@@ -16,116 +14,93 @@ class SCARBoW:
     def __init__(self, config, undersample=False):
         self.max_tokens = config.max_tokens
         self.use_idf = config.use_idf
-        self.data_dir = os.path.join(config.data_dir, config.target)
 
         if undersample:
             self.data_dir = os.path.join(config.data_dir, config.target + "_undersampled")
-            # self.NUM_LINES['train'] = 1815
         else:
             self.data_dir = os.path.join(config.data_dir, config.target)
 
-        self.train_file = os.path.join(self.data_dir, f'train_bow_{self.max_tokens}.csv')
-        self.dev_file = os.path.join(self.data_dir, f'dev_bow_{self.max_tokens}.csv')
-        self.test_file = os.path.join(self.data_dir, f'test_bow_{self.max_tokens}.csv')
+        self.train_file = os.path.join(self.data_dir, f"train_bow_{self.max_tokens}.csv")
+        self.dev_file = os.path.join(self.data_dir, f"dev_bow_{self.max_tokens}.csv")
+        self.test_file = os.path.join(self.data_dir, f"test_bow_{self.max_tokens}.csv")
 
-        if not (os.path.exists(self.train_file) and
-                os.path.exists(self.dev_file) and
-                os.path.exists(self.test_file)):
-            # If files don't exist, generate anew
-            # Instantiate data frames to store the data
-            self.raw_train_data = pd.DataFrame(columns=['label', 'text', 'vector'])
-            self.raw_dev_data = pd.DataFrame(columns=['label', 'text', 'vector'])
-            self.raw_test_data = pd.DataFrame(columns=['label', 'text', 'vector'])
+        if not (
+            os.path.exists(self.train_file)
+            and os.path.exists(self.dev_file)
+            and os.path.exists(self.test_file)
+        ):
+            self.raw_train_data = pd.DataFrame(columns=["label", "text", "vector"])
+            self.raw_dev_data = pd.DataFrame(columns=["label", "text", "vector"])
+            self.raw_test_data = pd.DataFrame(columns=["label", "text", "vector"])
 
-            # Read the files to extract target, and tokenize the text
-            self.raw_train_data = self.read_labels_and_tokens('train')
-            self.raw_dev_data = self.read_labels_and_tokens('dev')
-            self.raw_test_data = self.read_labels_and_tokens('test')
+            self.raw_train_data = self.read_labels_and_tokens("train")
+            self.raw_dev_data = self.read_labels_and_tokens("dev")
+            self.raw_test_data = self.read_labels_and_tokens("test")
 
-            # Using the tokens, make BoW vectors, using TF or TF-IDR, and then print out
             self.vectorize_tokens()
 
-        # Read in data
         self.train_data = pd.read_csv(self.train_file)
         self.dev_data = pd.read_csv(self.dev_file)
         self.test_data = pd.read_csv(self.test_file)
 
+    @staticmethod
+    def label_transform(label):
+        label = str(label).strip()
+
+        if label in {"0", "1"}:
+            return float(label)
+        if label == "10":
+            return 0.0
+        if label == "01":
+            return 1.0
+
+        raise ValueError("Invalid target provided, supports '0'/'1' or '10'/'01'")
+
     def vectorize_tokens(self):
-        # Fit Vectorizer to training data, and then use to transform for dev and test
-        vectorizer = CountVectorizer(max_features=self.max_tokens,
-                                     tokenizer=StemTokenizer(),  # Tokenizes, stems, and remove stop words
-                                     lowercase=True)
+        vectorizer = CountVectorizer(
+            max_features=self.max_tokens,
+            tokenizer=StemTokenizer(),
+            lowercase=True,
+        )
 
-        train_counts = vectorizer.fit_transform(self.raw_train_data['text'])
-        dev_counts = vectorizer.transform(self.raw_dev_data['text'])
-        test_counts = vectorizer.transform(self.raw_test_data['text'])
+        train_counts = vectorizer.fit_transform(self.raw_train_data["text"])
+        dev_counts = vectorizer.transform(self.raw_dev_data["text"])
+        test_counts = vectorizer.transform(self.raw_test_data["text"])
 
-        # Save vectorizer object for interpretation
         vectorizer_filename = os.path.join(self.data_dir, f"vectorizer_{self.max_tokens}.bz2")
-        with bz2.BZ2File(vectorizer_filename, 'w') as f:
+        with bz2.BZ2File(vectorizer_filename, "w") as f:
             pickle.dump(vectorizer, f)
 
-        # Fit TF-IDF-er (Term Frequency times inverse document frequency) on training data,
-        # and then use to transform for dev and test
         tfidf_transformer = TfidfTransformer(use_idf=self.use_idf).fit(train_counts)
-        self.raw_train_data['vector'] = tfidf_transformer.transform(train_counts).todense().tolist()
-        self.raw_dev_data['vector'] = tfidf_transformer.transform(dev_counts).todense().tolist()
-        self.raw_test_data['vector'] = tfidf_transformer.transform(test_counts).todense().tolist()
+        self.raw_train_data["vector"] = tfidf_transformer.transform(train_counts).todense().tolist()
+        self.raw_dev_data["vector"] = tfidf_transformer.transform(dev_counts).todense().tolist()
+        self.raw_test_data["vector"] = tfidf_transformer.transform(test_counts).todense().tolist()
 
-        # Save to csv for loading
-        self.raw_train_data.to_csv(self.train_file)
-        self.raw_dev_data.to_csv(self.dev_file)
-        self.raw_test_data.to_csv(self.test_file)
+        self.raw_train_data.to_csv(self.train_file, index=False)
+        self.raw_dev_data.to_csv(self.dev_file, index=False)
+        self.raw_test_data.to_csv(self.test_file, index=False)
 
     def read_labels_and_tokens(self, split):
-        filename = os.path.join(self.data_dir, split + '.tsv')
+        filename = os.path.join(self.data_dir, split + ".tsv")
 
-        if split == 'train':
+        if split == "train":
             df = self.raw_train_data
-        elif split == 'dev':
+        elif split == "dev":
             df = self.raw_dev_data
-        elif split == 'test':
+        elif split == "test":
             df = self.raw_test_data
         else:
-            df = pd.DataFrame()  # This is just to suppress a warning, will trigger error
+            raise ValueError(f"Invalid split: {split}")
 
-        # Open file
-        file = open(filename, "r")
-
-        i = 0
-        for line in tqdm(file):
-            values = line.split("\t")
-            assert len(values) == 2, "Reading a file, we found a line with multiple tabs"
-            label, raw_text = values[0], values[1]
-            df.loc[i, 'label'] = SCAR.label_transform(label)
-            df.at[i, 'text'] = raw_text  # Use at so can accept a list
-
-            i += 1
-
-        file.close()
+        with open(filename, "r", encoding="utf-8") as file:
+            for i, line in enumerate(tqdm(file)):
+                values = line.rstrip("\n").split("\t", maxsplit=1)
+                assert len(values) == 2, "Expected exactly one tab separating label and text"
+                label, raw_text = values
+                df.loc[i, "label"] = self.label_transform(label)
+                df.at[i, "text"] = raw_text
 
         return df
-
-    @staticmethod
-    def tokenize_text(text):
-        """
-        Processes and tokenizes the raw text before vectorization/tl-df/etc.
-        Same applied to drain, dev, and test data
-
-        :param text: One consult's input text
-        :return: tokenized text
-        """
-        # Make lower case
-        text = str.lower(text)
-        # Tokenize
-        tokenized_text = word_tokenize(text)
-        # Remove stopwords
-        tokenized_text_wo_sw = [word for word in tokenized_text if word not in stopwords.words('english')]
-        # Stem
-        stemmer = SnowballStemmer("english", ignore_stopwords=True)
-        stemmed_text = [stemmer.stem(word) for word in tokenized_text_wo_sw]
-
-        return ' '.join(stemmed_text)  # Return as a single string.
 
     def get_train_data(self):
         return self.train_data
@@ -140,6 +115,8 @@ class SCARBoW:
 class StemTokenizer:
     def __init__(self):
         self.sbs = SnowballStemmer("english", ignore_stopwords=True)
+        self.stop_words = set(stopwords.words("english"))
 
     def __call__(self, doc):
-        return [self.sbs.stem(t) for t in word_tokenize(doc)]
+        tokens = word_tokenize(doc)
+        return [self.sbs.stem(t) for t in tokens if t not in self.stop_words]
