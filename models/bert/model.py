@@ -52,6 +52,11 @@ class BERT(pl.LightningModule):
         self.val_step_outputs = []
         self.test_step_outputs = []
 
+        # UPDATED: store metric history manually
+        self.train_history = []
+        self.dev_history = []
+        self.test_history = []
+
     def forward(self, input_ids, attn_mask, labels=None):
         output = self.bert(input_ids=input_ids, attention_mask=attn_mask)
         output = self.classifier(output.pooler_output)
@@ -71,26 +76,73 @@ class BERT(pl.LightningModule):
         loss, pred_labels = self(input_ids, attention_mask, target_labels)
         self.log('train_loss', loss, prog_bar=False, logger=False)
 
+        #add 
+        self.train_step_outputs.append({"loss": loss, "predictions": pred_labels.detach(), "labels": target_labels})
+
         return {"loss": loss, "predictions": pred_labels.detach(), "labels": target_labels}
+    
 
     #def training_epoch_end(self, output):
+
     def on_train_epoch_end(self):
-        # Take all the target and predicted labels from the epoch and flatten into 1-dim tensors,
-        # then make target into int
+        output = self.train_step_outputs
+
         pred_labels, target_labels = self.flatten_epoch_output(output)
         target_labels_int = target_labels.int()
 
-        # Calculate and then log the metrics being used for this proejct
         train_epoch_metrics = calculate_metrics(pred_labels, target_labels_int)
-        self.log('train_perf',
-                 train_epoch_metrics,
-                 prog_bar=False,
-                 logger=True,
-                 on_epoch=True)
+        self.train_history.append(train_epoch_metrics)
 
-        # Keep balanced accuracy a full on torchmetrics module, as part of this class, for progress bar
+        self.logger.log_metrics(
+            {'train_perf_epoch': train_epoch_metrics, 'epoch': self.current_epoch},
+            step=self.current_epoch
+        )
+
         bal = self.tr_bal(pred_labels, target_labels_int)
         self.log('tr_bal', bal, prog_bar=False, logger=False)
+
+        self.train_step_outputs.clear()
+    
+
+    # def on_train_epoch_end(self):
+    # output = self.train_step_outputs
+
+    # pred_labels, target_labels = self.flatten_epoch_output(output)
+    # target_labels_int = target_labels.int()
+
+    # train_epoch_metrics = calculate_metrics(pred_labels, target_labels_int)
+
+    # self.logger.log_metrics(
+    #     {'train_perf_epoch': train_epoch_metrics, 'epoch': self.current_epoch},
+    #     step=self.current_epoch
+    # )
+
+    # bal = self.tr_bal(pred_labels, target_labels_int)
+    # self.log('tr_bal', bal, prog_bar=False, logger=False)
+
+    # self.train_step_outputs.clear()
+
+        # Take all the target and predicted labels from the epoch and flatten into 1-dim tensors,
+        # # then make target into int
+        # pred_labels, target_labels = self.flatten_epoch_output(output)
+        # target_labels_int = target_labels.int()
+
+        # # Calculate and then log the metrics being used for this proejct
+        # train_epoch_metrics = calculate_metrics(pred_labels, target_labels_int)
+        # # self.log('train_perf',
+        # #          train_epoch_metrics,
+        # #          prog_bar=False,
+        # #          logger=True,
+        # #          on_epoch=True)
+        
+        # self.logger.log_metrics(
+        #     {'train_perf_epoch': train_epoch_metrics, 'epoch': self.current_epoch},
+        #     step=self.current_epoch
+        # )
+
+        # # Keep balanced accuracy a full on torchmetrics module, as part of this class, for progress bar
+        # bal = self.tr_bal(pred_labels, target_labels_int)
+        # self.log('tr_bal', bal, prog_bar=False, logger=False)
 
         # print(f'\nTraining epoch completed, used {len(pred_labels)} examples')
 
@@ -127,11 +179,19 @@ class BERT(pl.LightningModule):
 
         # Calculate and then log the metrics being used for this proejct
         dev_epoch_metrics = calculate_metrics(pred_labels, target_labels_int)
-        self.log('dev_perf',
-                 dev_epoch_metrics,
-                 prog_bar=False,
-                 logger=True,
-                 on_epoch=True)
+        #new
+        self.dev_history.append(dev_epoch_metrics)
+        # self.log('dev_perf',
+        #          dev_epoch_metrics,
+        #          prog_bar=False,
+        #          logger=True,
+        #          on_epoch=True)
+        
+        #new 
+        self.logger.log_metrics(
+            {'dev_perf': dev_epoch_metrics, 'epoch': self.current_epoch},
+            step=self.current_epoch
+        )
 
         # Keep balanced accuracy a full on torchmetrics module, as part of this class, for early stopping
         bal = self.val_bal(pred_labels, target_labels_int)
@@ -171,11 +231,19 @@ class BERT(pl.LightningModule):
 
         # Calculate and then log the metrics being used for this project
         test_epoch_metrics = calculate_metrics(pred_labels, target_labels_int)
-        self.log('test_perf',
-                 test_epoch_metrics,
-                 prog_bar=False,
-                 logger=True,
-                 on_epoch=True)
+        #new
+        self.test_history.append(test_epoch_metrics)
+        # self.log('test_perf',
+        #          test_epoch_metrics,
+        #          prog_bar=False,
+        #          logger=True,
+        #          on_epoch=True)
+
+        #update 
+        self.logger.log_metrics(
+            {'test_perf': test_epoch_metrics, 'epoch': self.current_epoch},
+            step=self.current_epoch
+            )
 
         # Keep balanced accuracy a full on TorchMetrics module, as part of this class, for early stopping
         bal = self.test_bal(pred_labels, target_labels_int)

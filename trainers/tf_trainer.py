@@ -48,15 +48,27 @@ class TransformerTrainer(pl.Trainer):
 
         self.start = time.time()  # Don't want to mess with inherited fit so just grab start time here
 
-    def get_results(self):
-        """
-        Quick function to return our custom logger's history, as well as the
-        start time, to maintain functionality with the rest of the codebase results handling
-        :return:
-        """
+    # def get_results(self):
+    #     """
+    #     Quick function to return our custom logger's history, as well as the
+    #     start time, to maintain functionality with the rest of the codebase results handling
+    #     :return:
+    #     """
 
-        #train_history, dev_history, test_history = self.logger[1].get_history()
-        train_history, dev_history, test_history = self.logger.get_history()
+    #     #train_history, dev_history, test_history = self.logger[1].get_history()
+    #     #train_history, dev_history, test_history = self.logger.get_history()
+    #     train_history = self.model.train_history
+    #     dev_history = self.model.dev_history
+    #     test_history = self.model.test_history
+
+    #     start = self.start
+
+    #     return train_history, dev_history, test_history, start
+
+    def get_results(self):
+        train_history = pd.DataFrame(self.model.train_history)
+        dev_history = pd.DataFrame(self.model.dev_history)
+        test_history = pd.DataFrame(self.model.test_history)
 
         start = self.start
 
@@ -212,8 +224,9 @@ class MyLogger(Logger):
             )
             self.test_history.index.name = "epoch"
         else:
-            raise ValueError(f"Unexpected metrics, here they are: {metrics}")
-
+            # raise ValueError(f"Unexpected metrics, here they are: {metrics}")
+            #update
+            pass 
 
 
 
